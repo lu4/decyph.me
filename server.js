@@ -31,7 +31,7 @@ app.get('/permalink/:text', async (req, res) => {
     const qrCodeDataURL = await QRCode.toDataURL(text, {
       errorCorrectionLevel: 'L',
       type: 'image/png',
-      width: 512,
+      width: 256,
       margin: 1
     });
     
