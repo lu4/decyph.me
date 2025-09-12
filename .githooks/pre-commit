@@ -1,0 +1,24 @@
+#!/bin/sh
+#
+# Pre-commit hook to build embedded HTML
+# This ensures the dist/index.html is always up to date
+
+echo "Running pre-commit build process..."
+
+# Run the build script
+/Users/lu4/.nvm/versions/node/v22.17.1/bin/node build.js
+
+# Check if build was successful
+if [ $? -ne 0 ]; then
+    echo "❌ Build failed! Commit aborted."
+    exit 1
+fi
+
+# Add the built file to the commit if it was modified
+if [ -f "dist/index.html" ]; then
+    git add dist/index.html
+    echo "✅ Built HTML added to commit"
+fi
+
+echo "✅ Pre-commit build completed successfully"
+exit 0

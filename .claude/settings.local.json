@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebSearch",
+      "Bash(heroku buildpacks:set:*)",
+      "Bash(git push:*)",
+      "Bash(heroku ps:scale:*)",
+      "Bash(heroku open:*)",
+      "Bash(heroku domains:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:unpkg.com)",
+      "Bash(curl:*)",
+      "Bash(npm start)",
+      "Bash(node server.js)",
+      "WebFetch(domain:localhost)",
+      "Bash(tree:*)",
+      "Bash(heroku:*)",
+      "Bash(chmod:*)",
+      "Bash(git config:*)",
+      "Bash(npm run build:*)",
+      "Bash(node:*)",
+      "Bash(/Users/lu4/.nvm/versions/node/v22.17.1/bin/node build.js)",
+      "WebFetch(domain:cdnjs.cloudflare.com)",
+      "Bash(shasum:*)",
+      "Bash(/Users/lu4/.nvm/versions/node/v22.17.1/bin/node -c server.js)",
+      "Bash(git add:*)",
+      "Bash(git checkout:*)",
+      "Bash(git commit:*)",
+      "Bash(git branch:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

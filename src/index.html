@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>decyph.me - Secure physical password storage</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔐</text></svg>">
+    <link rel="apple-touch-icon" href="favicon.svg">
+    <link rel="manifest" href="manifest.json">
+    
+    <script src="js/cdnjs.cloudflare.com/ajax/libs/scrypt-js/3.0.1/scrypt.js"></script>
+    <script src="js/cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/alpinejs/3.15.0/cdn.js"></script>
+    <link rel="stylesheet" href="css/decyph-app.css">
+</head>
+<body>
+    <div class="container" x-data="decyphApp()">
+        <div class="header">
+            <h1>🔐 decyph.me</h1>
+            <p>Secure text encryption with QR code generation</p>
+        </div>
+        
+        <div class="content">
+            <div x-show="showAutoDecryptBanner" class="auto-decrypt-banner" x-cloak>
+                🎯 Encrypted data detected in URL! Ready to decrypt automatically.
+            </div>
+            
+            <div class="mode-selector">
+                <button class="mode-btn" :class="{ 'active': currentMode === 'encrypt' }" @click="setMode('encrypt')">🔒 Encrypt</button>
+                <button class="mode-btn" :class="{ 'active': currentMode === 'decrypt' }" @click="setMode('decrypt')">🔓 Decrypt</button>
+            </div>
+            
+            <div x-show="showAlert" :class="`alert alert-${alertType}`" x-cloak>
+                <span x-text="alertMessage"></span>
+            </div>
+            
+            <!-- Encrypt Mode -->
+            <div x-show="currentMode === 'encrypt'" x-cloak>
+                <!-- Encrypt Form - Hidden after successful encryption -->
+                <div x-show="!showEncryptResult">
+                    <div class="form-group">
+                        <label for="plaintext">Text to Encrypt</label>
+                        <textarea x-model="plaintext" @input="updatePasswordStrength" class="form-control" placeholder="Enter your secret text here..." rows="4"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password1">Password</label>
+                        <input type="password" x-model="password1" @input="updatePasswordStrength; resetPasswordTimer()" class="form-control" placeholder="Enter a strong password (min 14 characters)">
+                        <div x-show="showPasswordStrength" :class="passwordStrengthClass" x-text="passwordStrengthText" x-cloak></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="password2">Confirm Password</label>
+                        <input type="password" x-model="password2" @input="updatePasswordStrength; resetPasswordTimer()" class="form-control" placeholder="Confirm your password">
+                    </div>
+                    
+                    <!-- Password Clear Timer -->
+                    <div x-show="showPasswordTimer" class="password-timer" x-cloak>
+                        <div class="timer-header">
+                            <small class="form-text text-muted">Passwords will be cleared in: <span x-text="passwordTimeLeft"></span>s</small>
+                        </div>
+                        <div class="password-progress-container">
+                            <div class="password-progress-bar" :style="`width: ${passwordProgress}%`"></div>
+                        </div>
+                    </div>
+
+                    <!-- Encryption Progress -->
+                    <div x-show="showEncryptionProgress" class="encryption-timer" x-cloak>
+                        <div class="timer-header">
+                            <small class="form-text text-muted">Encrypting...</small>
+                        </div>
+                        <div class="encryption-progress-container">
+                            <div class="encryption-progress-bar" :style="`width: ${encryptionProgress}%`"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="button-row" style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <button @click="handleEncrypt" class="btn btn-primary" :disabled="!isEncryptFormValid">
+                            🔒 Encrypt & Generate QR
+                        </button>
+                        
+                        <div class="sound-option">
+                            <label class="checkbox-label">
+                                <input type="checkbox" x-model="playEncryptSound" class="checkbox">
+                                <span class="checkmark">🔊 Play sound when encryption completes</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Encryption Results Section -->
+                <div x-show="showEncryptResult" class="result" x-cloak style="position: relative;">
+                    <!-- Close Button -->
+                    <button @click="closeEncryptResult" class="close-btn" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; color: var(--text-secondary); cursor: pointer; z-index: 10;">✕</button>
+                    <h3>🎉 Encryption Successful!</h3>
+                    <div style="margin-bottom: 2rem;">
+                        <div class="section-header">
+                            <h4>📱 Scan to Share</h4>
+                            <p>Share this QR code for instant decryption</p>
+                        </div>
+                        <div class="qr-container">
+                            <div id="qrCanvas"></div>
+                            
+                            <div class="qr-option" style="margin-top: 1rem;">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" x-model="useBlackQR" @change="regenerateQR()" class="checkbox">
+                                    <span class="checkmark">⬛ Use black QR code</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="data-section">
+                        <div class="section-header">
+                            <h4>🔗 Shareable Link</h4>
+                            <p>Direct link for easy sharing</p>
+                        </div>
+                        <div class="result-content" x-text="shareableLink"></div>
+                        <div class="copy-container">
+                            <button class="copy-btn" @click="copyToClipboard(shareableLink, $event)">📋 Copy to clipboard</button>
+                        </div>
+                    </div>
+                    <div class="data-section" style="margin-top: 1.5rem;">
+                        <div class="section-header">
+                            <h4>🔒 Encrypted Data</h4>
+                            <p>Base64 encoded encrypted content</p>
+                        </div>
+                        <div class="result-content" x-text="encryptedData"></div>
+                        <div class="copy-container">
+                            <button class="copy-btn" @click="copyToClipboard(encryptedData, $event)">📋 Copy to clipboard</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Decrypt Mode -->
+            <div x-show="currentMode === 'decrypt'" x-cloak>
+                <!-- Decrypt Form - Hidden after successful decryption -->
+                <div x-show="!isDecryptionComplete">
+                    <div class="form-group">
+                        <label for="encryptedInput">Encrypted Data or URL</label>
+                        <textarea x-model="encryptedInput" class="form-control" placeholder="Paste encrypted data or URL here..." rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="decryptPassword">Password</label>
+                        <input type="password" x-model="decryptPassword" @keydown.enter="handleDecrypt" class="form-control" placeholder="Enter your password">
+                    </div>
+                    
+                    <div class="button-row" style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <button @click="handleDecrypt" class="btn btn-primary">
+                            🔓 Decrypt
+                        </button>
+                        
+                        <div class="sound-option">
+                            <label class="checkbox-label">
+                                <input type="checkbox" x-model="playDecryptSound" class="checkbox">
+                                <span class="checkmark">🔊 Play sound when decryption completes</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Decryption Result Section -->
+                <div x-show="isDecryptionComplete" class="result" x-cloak style="position: relative;">
+                    <!-- Close Button -->
+                    <button @click="decryptAgain" class="close-btn" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; color: var(--text-secondary); cursor: pointer; z-index: 10;">✕</button>
+                    
+                    <div x-show="showLoading" style="text-align: center;">
+                        <h3><div class="spinner"></div> Decrypting...</h3>
+                        <div class="progress-container" style="width: 100%; max-width: 300px; margin: 1rem auto;">
+                            <div class="progress-bar" :style="`width: ${decryptionProgress}%`"></div>
+                        </div>
+                    </div>
+                    <h3 x-show="!showLoading"><span class="emoji">🎉</span> Decryption Successful!</h3>
+                    
+                    <div class="security-notice">
+                        <div class="notice-header">
+                            <h4>⚠️ Security Notice</h4>
+                        </div>
+                        <p x-text="securityNoticeText">The decrypted text will be visible for the selected duration. After the timer expires, the text will be permanently cleared from memory for security.</p>
+                    </div>
+                    
+                    <div x-show="showTimerControls" class="timer-controls">
+                        <div class="clipboard-option" style="margin-bottom: 1rem;">
+                            <label class="checkbox-label">
+                                <input type="checkbox" x-model="clearClipboard" class="checkbox">
+                                <span class="checkmark"></span>
+                                Clear clipboard after specified time
+                            </label>
+                        </div>
+                        <p><strong>Clear decrypted text after:</strong></p>
+                        <div class="timer-buttons">
+                            <button class="timer-btn" @click="selectDuration(5)" :class="{ 'selected': selectedDuration === 5 }">5s</button>
+                            <button class="timer-btn" @click="selectDuration(10)" :class="{ 'selected': selectedDuration === 10 }">10s</button>
+                            <button class="timer-btn" @click="selectDuration(30)" :class="{ 'selected': selectedDuration === 30 }">30s</button>
+                            <button class="timer-btn" @click="selectDuration(60)" :class="{ 'selected': selectedDuration === 60 }">1m</button>
+                            <button class="timer-btn" @click="selectDuration(180)" :class="{ 'selected': selectedDuration === 180 }">3m</button>
+                            <button class="timer-btn" @click="selectDuration(300)" :class="{ 'selected': selectedDuration === 300 }">5m</button>
+                            <button class="timer-btn" @click="selectDuration(600)" :class="{ 'selected': selectedDuration === 600 }">10m</button>
+                            <button class="timer-btn" @click="selectDuration(1800)" :class="{ 'selected': selectedDuration === 1800 }">30m</button>
+                        </div>
+                    </div>
+                    
+                    <div x-show="showRevealSection && !showLoading" x-cloak>
+                        <div class="countdown-display" x-text="countdownText"></div>
+                        
+                    
+                        <div x-show="decryptedTextContent" class="masked-content">
+                            <strong>Decrypted Text:</strong>
+                            <div class="result-content masked" @click="toggleTextReveal">
+                                <div x-show="!isTextRevealed" class="mask-overlay">🔒 Click to reveal text</div>
+                                <div x-show="isTextRevealed" class="actual-text" x-text="decryptedTextContent"></div>
+                            </div>
+                            <div class="copy-container">
+                                <button class="copy-btn" @click="copyToClipboard(decryptedTextContent, $event)">📋 Copy to clipboard</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/decyph-app.js"></script>
+</body>
+</html>

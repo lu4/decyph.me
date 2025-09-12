@@ -1,0 +1,26 @@
+{
+  "name": "qr-encrypt",
+  "version": "1.0.0",
+  "description": "Secure text encryption with QR code generation",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "node build.js"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "qrcode": "^1.5.3"
+  },
+  "keywords": [
+    "encryption",
+    "qr-code",
+    "security",
+    "heroku"
+  ],
+  "author": "",
+  "license": "MIT"
+}
