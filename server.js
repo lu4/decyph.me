@@ -9,34 +9,35 @@ const PORT = process.env.PORT || 3000;
 // Middleware for parsing request bodies
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.text({ type: 'text/plain' }));
 
 // Serve static files from dist directory only (favicon, manifest, built HTML)
 app.use(express.static('dist'));
 
 // Root route serves the built embedded HTML file
 app.get('/', (req, res) => {
-  const distPath = path.join(__dirname, 'dist', 'index.html');
-  
-  if (fs.existsSync(distPath)) {
-    res.sendFile(distPath);
-  } else {
-    res.status(500).send('Built HTML not found. Run "npm run build" to generate the application.');
-  }
+    const distPath = path.join(__dirname, 'dist', 'index.html');
+
+    if (fs.existsSync(distPath)) {
+        res.sendFile(distPath);
+    } else {
+        res.status(500).send('Built HTML not found. Run "npm run build" to generate the application.');
+    }
 });
 
 // Permalink endpoint - GET and POST (formerly /qr)
 app.get('/permalink/:text', async (req, res) => {
-  try {
-    const text = decodeURIComponent(req.params.text);
-    const qrCodeDataURL = await QRCode.toDataURL(text, {
-      errorCorrectionLevel: 'L',
-      type: 'image/png',
-      width: 256,
-      margin: 1
-    });
-    
-    res.setHeader('Content-Type', 'text/html');
-    res.send(`
+    try {
+        const text = decodeURIComponent(req.params.text);
+        const qrCodeDataURL = await QRCode.toDataURL(text, {
+            errorCorrectionLevel: 'L',
+            type: 'image/png',
+            width: 256,
+            margin: 1
+        });
+
+        res.setHeader('Content-Type', 'text/html');
+        res.send(`
       <!DOCTYPE html>
       <html>
       <head>
@@ -67,99 +68,150 @@ app.get('/permalink/:text', async (req, res) => {
       </body>
       </html>
     `);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to generate QR code', message: error.message });
-  }
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to generate QR code', message: error.message });
+    }
 });
 
 app.post('/permalink', async (req, res) => {
-  try {
-    const text = req.body.text || req.body.data || '';
-    if (!text) {
-      return res.status(400).json({ error: 'Missing text parameter' });
+    try {
+        const text = req.body.text || req.body.data || '';
+        if (!text) {
+            return res.status(400).json({ error: 'Missing text parameter' });
+        }
+
+        const qrCodeDataURL = await QRCode.toDataURL(text, {
+            errorCorrectionLevel: 'L',
+            type: 'image/png',
+            width: 512,
+            margin: 2
+        });
+
+        res.json({
+            success: true,
+            text: text,
+            qrCode: qrCodeDataURL
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to generate QR code', message: error.message });
     }
-    
-    const qrCodeDataURL = await QRCode.toDataURL(text, {
-      errorCorrectionLevel: 'L',
-      type: 'image/png',
-      width: 512,
-      margin: 2
-    });
-    
-    res.json({
-      success: true,
-      text: text,
-      qrCode: qrCodeDataURL
-    });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to generate QR code', message: error.message });
-  }
 });
 
-// QR Code PNG generation endpoint with optional resolution
-app.get('/qr/:resolution/:text', async (req, res) => {
-  try {
-    const resolution = parseInt(req.params.resolution) || 1024;
-    const text = decodeURIComponent(req.params.text);
-    
-    // Validate resolution (min: 64, max: 4096)
-    const validResolution = Math.max(64, Math.min(4096, resolution));
-    
-    const qrCodeBuffer = await QRCode.toBuffer(text, {
-      errorCorrectionLevel: 'L',
-      type: 'png',
-      width: validResolution,
-      margin: 1
-    });
-    
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Content-Length', qrCodeBuffer.length);
-    res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
-    res.send(qrCodeBuffer);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to generate QR code', message: error.message });
-  }
-});
+// Helper function for QR Code generation with optional resolution
+const generateQRCodeWithResolution = async (req, res) => {
+    try {
+        // Extract parameters from URL (GET) or body (POST)
+        const resolution = parseInt(req.params.resolution || req.body.resolution) || 1024;
 
-// QR Code PNG generation endpoint with default 1024x1024 resolution
-app.get('/qr/:text', async (req, res) => {
-  try {
-    const text = decodeURIComponent(req.params.text);
-    
-    const qrCodeBuffer = await QRCode.toBuffer(text, {
-      errorCorrectionLevel: 'L',
-      type: 'png',
-      width: 512,
-      margin: 1
-    });
-    
-    res.setHeader('Content-Type', 'image/png');
-    res.setHeader('Content-Length', qrCodeBuffer.length);
-    res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
-    res.send(qrCodeBuffer);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to generate QR code', message: error.message });
-  }
-});
+        // Extract text based on method and content type
+        let text;
 
-// Fallback route serves the main HTML file for any /qr path not matched above
-app.get('/qr*', (req, res) => {
-  const distPath = path.join(__dirname, 'dist', 'index.html');
-  
-  if (fs.existsSync(distPath)) {
-    res.sendFile(distPath);
-  } else {
-    res.status(500).send('Built HTML not found. Run "npm run build" to generate the application.');
-  }
-});
+        // For POST with text/plain, use the raw body
+        if (req.method === 'POST' && req.get('content-type') === 'text/plain' && req.body) {
+            text = typeof req.body === 'string' ? req.body : req.body.toString();
+        }
+        // For POST with JSON, use text or data field
+        else if (req.method === 'POST' && req.body && (req.body.text || req.body.data)) {
+            text = req.body.text || req.body.data;
+        }
+        // For GET or fallback, use URL parameter
+        else if (req.params.text) {
+            text = decodeURIComponent(req.params.text);
+        }
+
+        if (!text) {
+            return res.status(400).json({ error: 'Missing text parameter' });
+        }
+
+        // Validate resolution (min: 64, max: 4096)
+        const validResolution = Math.max(64, Math.min(4096, resolution));
+
+        const qrCodeBuffer = await QRCode.toBuffer(text, {
+            errorCorrectionLevel: 'L',
+            type: 'png',
+            width: validResolution,
+            margin: 1
+        });
+
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Content-Length', qrCodeBuffer.length);
+        res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+        res.send(qrCodeBuffer);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to generate QR code', message: error.message });
+    }
+};
+
+// QR Code PNG generation endpoint with optional resolution - GET and POST
+app.get('/qr/:resolution/:text', generateQRCodeWithResolution);
+app.post('/qr/:resolution/:text', generateQRCodeWithResolution);
+
+// Helper function for QR Code generation with default resolution
+const generateQRCodeDefault = async (req, res) => {
+    try {
+        // Extract text based on method and content type
+        let text;
+
+        // For POST with text/plain, use the raw body
+        if (req.method === 'POST' && req.get('content-type') === 'text/plain' && req.body) {
+            text = typeof req.body === 'string' ? req.body : req.body.toString();
+        }
+        // For POST with JSON, use text or data field
+        else if (req.method === 'POST' && req.body && (req.body.text || req.body.data)) {
+            text = req.body.text || req.body.data;
+        }
+        // For GET or fallback, use URL parameter
+        else if (req.params.text) {
+            text = decodeURIComponent(req.params.text);
+        }
+
+        if (!text) {
+            return res.status(400).json({ error: 'Missing text parameter' });
+        }
+
+        const qrCodeBuffer = await QRCode.toBuffer(text, {
+            errorCorrectionLevel: 'L',
+            type: 'png',
+            width: 512,
+            margin: 1
+        });
+
+        res.setHeader('Content-Type', 'image/png');
+        res.setHeader('Content-Length', qrCodeBuffer.length);
+        res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+        res.send(qrCodeBuffer);
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to generate QR code', message: error.message });
+    }
+};
+
+// QR Code PNG generation endpoint with default 512x512 resolution - GET and POST
+app.get('/qr/:text', generateQRCodeDefault);
+app.post('/qr/:text', generateQRCodeDefault);
+app.post('/qr', generateQRCodeDefault);  // Direct POST to /qr with body content
+
+// Fallback handler for /qr paths
+const handleQRFallback = (req, res) => {
+    const distPath = path.join(__dirname, 'dist', 'index.html');
+
+    if (fs.existsSync(distPath)) {
+        res.sendFile(distPath);
+    } else {
+        res.status(500).send('Built HTML not found. Run "npm run build" to generate the application.');
+    }
+};
+
+// Fallback route serves the main HTML file for any /qr path not matched above - GET and POST
+app.get('/qr*', handleQRFallback);
+app.post('/qr*', handleQRFallback);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+    res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
 // Start server
 app.listen(PORT, () => {
-  console.log(`decyph.me server running on port ${PORT}`);
-  console.log(`Visit: http://localhost:${PORT}`);
+    console.log(`decyph.me server running on port ${PORT}`);
+    console.log(`Visit: http://localhost:${PORT}`);
 });
