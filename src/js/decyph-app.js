@@ -210,9 +210,10 @@ function decyphApp() {
                 this.decryptPassword = '';
             }
 
-            // Clear encrypt passwords when switching away from encrypt mode for security
+            // Clear encrypt passwords and plaintext when switching away from encrypt mode for security
             if (this.currentMode === 'encrypt' && mode !== 'encrypt') {
                 this.clearPasswords();
+                this.plaintext = '';
             }
 
             this.currentMode = mode;
