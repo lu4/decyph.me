@@ -199,12 +199,22 @@ function decyphApp() {
                 this.decryptAgain();
                 return;
             }
-            
-            // If switching away from encrypt mode with results shown, clear like X button  
+
+            // If switching away from encrypt mode with results shown, clear like X button
             if (this.currentMode === 'encrypt' && this.showEncryptResult && mode !== 'encrypt') {
                 this.closeEncryptResult();
             }
-            
+
+            // Clear decrypt password when switching away from decrypt mode for security
+            if (this.currentMode === 'decrypt' && mode !== 'decrypt') {
+                this.decryptPassword = '';
+            }
+
+            // Clear encrypt passwords when switching away from encrypt mode for security
+            if (this.currentMode === 'encrypt' && mode !== 'encrypt') {
+                this.clearPasswords();
+            }
+
             this.currentMode = mode;
             this.hideAlert();
             this.showEncryptResult = false;
@@ -514,6 +524,7 @@ function decyphApp() {
                 const plaintext = this.plaintext;
 
                 // Clear passwords AND plaintext immediately for security
+                // This also stops the password auto-clear timer to prevent unexpected clipboard clearing
                 this.clearPasswords();
                 this.plaintext = '';
                 this.startEncryptionProgress();
@@ -549,22 +560,25 @@ function decyphApp() {
                     return;
                 }
 
+                // Store password before clearing
+                const password = this.decryptPassword;
+
+                // Clear password immediately for security (before decryption starts)
+                this.decryptPassword = '';
+
                 // Transition to preview mode instantly
                 this.isDecryptionComplete = true;
 
-                const decryptResult = await this.decrypt(this.encryptedInput, this.decryptPassword);
+                const decryptResult = await this.decrypt(this.encryptedInput, password);
 
                 this.decryptedTextContent = decryptResult.text;
                 this.showTimerControls = !decryptResult.isEncodedDuration;
-
-                // Clear password for security
-                this.decryptPassword = '';
 
                 // Show timer controls and auto-start timer with default duration
                 this.showTimerControls = true;
                 this.showRevealSection = true;
                 this.startCountdown();
-                
+
                 // Play sound notification if enabled
                 if (this.playDecryptSound) {
                     this.playNotificationSound();
@@ -574,6 +588,7 @@ function decyphApp() {
                 this.displayAlert('Decryption failed. Check your password and data.');
                 // Reset to decrypt form if decryption fails
                 this.isDecryptionComplete = false;
+                // Password already cleared above for security
             }
         },
 
