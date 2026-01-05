@@ -509,14 +509,16 @@ function decyphApp() {
             try {
                 this.hideAlert();
 
-                // Store password before clearing
+                // Store password and plaintext before clearing
                 const password = this.password1;
-                
-                // Clear passwords immediately and start encryption progress
+                const plaintext = this.plaintext;
+
+                // Clear passwords AND plaintext immediately for security
                 this.clearPasswords();
+                this.plaintext = '';
                 this.startEncryptionProgress();
 
-                const encrypted = await this.encrypt(this.plaintext, password, 10); // Default 10 second duration
+                const encrypted = await this.encrypt(plaintext, password, 10); // Default 10 second duration
                 const link = this.BASE_URL + encrypted;
 
                 this.encryptedData = encrypted;
