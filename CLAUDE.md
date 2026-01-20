@@ -30,6 +30,11 @@ cd python-tools
 # Install Python dependencies
 pip install -r requirements.txt
 
+# Note: decode_qr.py requires zbar system library
+# - macOS: brew install zbar
+# - Ubuntu/Debian: sudo apt-get install libzbar0
+# - Fedora: sudo dnf install zbar
+
 # Run main encryption tool (interactive)
 python encrypt_qr.py
 
@@ -38,6 +43,11 @@ python decrypt_qr_minimal.py
 
 # Convert files to QR codes
 python file_to_qr.py
+
+# Decode QR code from image
+python decode_qr.py <image_path>
+python decode_qr.py ledger-password.png
+python decode_qr.py --clipboard  # Decode from clipboard
 ```
 
 ### Heroku Deployment
@@ -63,10 +73,11 @@ heroku ps:scale web=1
 ### Dual Implementation Structure
 The project maintains two parallel implementations of the same encryption scheme:
 
-1. **Python CLI Tools** (`python-tools/encrypt_qr.py`, `decrypt_qr_minimal.py`, `file_to_qr.py`)
+1. **Python CLI Tools** (`python-tools/encrypt_qr.py`, `decrypt_qr_minimal.py`, `file_to_qr.py`, `decode_qr.py`)
    - Command-line interface for encryption/decryption
    - Uses Python's `cryptography` library for crypto operations
    - Direct QR code generation with `qrcode[pil]`
+   - QR code decoding from images with `pyzbar`
 
 2. **Web Application** (`server.js`, `public/index.html`)
    - Browser-based interface with identical functionality
@@ -90,7 +101,8 @@ The web app includes URL fragment detection for encrypted data. When accessing U
 - Focuses the password input
 
 ### External Dependencies
-- **Python**: `cryptography==41.0.7`, `qrcode[pil]==7.4.2`
+- **Python**: `cryptography==41.0.7`, `qrcode[pil]==7.4.2`, `pillow>=10.0.0`, `pyzbar>=0.1.9`
+  - **System dependency for decode_qr.py**: zbar library (libzbar)
 - **JavaScript**: scrypt-js v3.0.1, qrcodejs v1.0.0 (both from cdnjs.cloudflare.com)
 - **Node.js**: Express v4.18.2, qrcode v1.5.3 for server-side QR generation
 - **Runtime**: Node.js 22.x LTS (heroku-24 stack)
