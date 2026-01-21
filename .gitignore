@@ -93,3 +93,5 @@ dist/
 
 # Claude IDE settings
 .claude/
+
+__pycache__/

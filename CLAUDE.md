@@ -30,24 +30,72 @@ cd python-tools
 # Install Python dependencies
 pip install -r requirements.txt
 
-# Note: decode_qr.py requires zbar system library
+# Note: QR decoding requires zbar system library
 # - macOS: brew install zbar
 # - Ubuntu/Debian: sudo apt-get install libzbar0
 # - Fedora: sudo dnf install zbar
 
-# Run main encryption tool (interactive)
-python encrypt_qr.py
+# === UNIFIED TOOL (Recommended) ===
+# decyph.py - All-in-one encryption/decryption with QR support
+# SECURITY: Passwords/data are NEVER command-line args (shell history leak prevention)
+#           Always prompted securely or piped from stdin
+#           Comprehensive security warnings before sensitive operations
 
-# Run minimal decryption tool
+# CONTEXT-AWARE ARGUMENTS:
+# Same argument name adapts based on mode (encrypt vs decrypt):
+# --qr-code, --url, --base64: OUTPUT in -e mode, INPUT in -d mode
+# --clipboard: WRITE in -e mode, READ in -d mode
+
+# Encryption (interactive - prompts for text and password)
+python decyph.py -e
+python decyph.py -e --qr-code                   # Show QR on screen
+python decyph.py -e --qr-code qr.png            # Save as QR PNG
+python decyph.py -e --url link.txt              # Save full URL to file
+python decyph.py -e --base64 data.txt           # Save base64 to file
+
+# Multiple outputs simultaneously (encrypt only)
+python decyph.py -e --qr-code qr.png --url link.txt --base64 data.b64
+
+# Encryption (piped - SECURE methods only)
+cat file.txt | python decyph.py -e --qr-code qr.png  # From file (SECURE)
+pbpaste | python decyph.py -e                        # From clipboard (SECURE)
+
+# ⚠️ NEVER use echo with sensitive data:
+# echo "Secret" | python decyph.py -e  # ❌ INSECURE! Saves in shell history
+
+# Decryption (interactive - prompts for data and password)
+python decyph.py -d
+python decyph.py -d --url encrypted.txt         # Read from URL file
+python decyph.py -d --base64 data.txt           # Read from base64 file
+python decyph.py -d --qr-code                   # Prompts for QR path
+python decyph.py -d --qr-code qr.png            # Scan QR → decrypt
+python decyph.py -d --clipboard                 # Clipboard QR → decrypt
+
+# Decryption (piped - SECURE methods only)
+cat encrypted.txt | python decyph.py -d  # From file (SECURE)
+pbpaste | python decyph.py -d            # From clipboard (SECURE)
+
+# ⚠️ NEVER use echo with encrypted data:
+# echo "ARIIAYJo..." | python decyph.py -d  # ❌ INSECURE! Saves in shell history
+
+# QR code operations (no encryption)
+python decyph.py --encode-qr --qr-code qr.png   # Plain text → QR PNG
+python decyph.py --encode-qr --qr-code          # Plain text → QR screen
+python decyph.py --decode-qr --qr-code qr.png   # QR → text
+
+# Advanced (custom QR styling)
+python decyph.py -e --qr-code qr.png -b 30 --fill blue --back yellow
+
+# Quiet mode (suppress security warnings - use with caution!)
+python decyph.py -e -q
+
+# === MINIMAL TOOL ===
+# decrypt_qr_minimal.py - 7-line minimal decryption
 python decrypt_qr_minimal.py
 
-# Convert files to QR codes
-python file_to_qr.py
-
-# Decode QR code from image
-python decode_qr.py <image_path>
-python decode_qr.py ledger-password.png
-python decode_qr.py --clipboard  # Decode from clipboard
+# === LEGACY TOOLS (functionality in decyph.py) ===
+# encrypt_qr.py, decode_qr.py, file_to_qr.py, generate_qr.py
+# See python-tools/LEGACY_TOOLS.md for details
 ```
 
 ### Heroku Deployment
@@ -73,11 +121,14 @@ heroku ps:scale web=1
 ### Dual Implementation Structure
 The project maintains two parallel implementations of the same encryption scheme:
 
-1. **Python CLI Tools** (`python-tools/encrypt_qr.py`, `decrypt_qr_minimal.py`, `file_to_qr.py`, `decode_qr.py`)
+1. **Python CLI Tools** (`python-tools/decyph.py` - unified tool, `decrypt_qr_minimal.py`)
    - Command-line interface for encryption/decryption
    - Uses Python's `cryptography` library for crypto operations
    - Direct QR code generation with `qrcode[pil]`
    - QR code decoding from images with `pyzbar`
+   - **decyph.py** - All-in-one tool combining encryption, decryption, QR generation/decoding
+   - **decrypt_qr_minimal.py** - 7-line minimal decryption tool
+   - Legacy tools: `encrypt_qr.py`, `decode_qr.py`, `file_to_qr.py`, `generate_qr.py`
 
 2. **Web Application** (`server.js`, `public/index.html`)
    - Browser-based interface with identical functionality
