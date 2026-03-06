@@ -675,51 +675,42 @@ def cmd_encode_qr(args):
     if not data:
         raise ValueError("No input data provided")
 
-    # Output QR code
-    if args.qr_code is not None:
-        if args.qr_code == '':
-            # Show terminal QR
-            if not args.quiet:
-                print("QR Code:")
-            generate_qr_console(data)
-        else:
-            # Save PNG
-            output_path, qr_version, img_size = generate_qr_png(
-                data=data,
-                output=args.qr_code,
-                box_size=args.box_size,
-                border=args.border,
-                error_correction=args.error_correction,
-                fill_color=args.fill,
-                back_color=args.back,
-            )
-
-            if not args.quiet:
-                print(f"QR code saved to: {output_path}")
-                print(f"  Version: {qr_version}")
-                print(f"  Image size: {img_size[0]}x{img_size[1]} pixels")
-    else:
-        # Default: show terminal QR
+    # Output QR code using --encode-qr argument directly
+    if args.encode_qr == '':
+        # Show terminal QR (no filename provided)
         if not args.quiet:
             print("QR Code:")
         generate_qr_console(data)
+    else:
+        # Save PNG (filename provided)
+        output_path, qr_version, img_size = generate_qr_png(
+            data=data,
+            output=args.encode_qr,
+            box_size=args.box_size,
+            border=args.border,
+            error_correction=args.error_correction,
+            fill_color=args.fill,
+            back_color=args.back,
+        )
+
+        if not args.quiet:
+            print(f"QR code saved to: {output_path}")
+            print(f"  Version: {qr_version}")
+            print(f"  Image size: {img_size[0]}x{img_size[1]} pixels")
 
 
 def cmd_decode_qr(args):
     """Decode QR code only (no decryption)."""
-    if args.qr_code is not None:
-        if args.qr_code == '':
-            # Prompt for QR file path
-            qr_path = input("Enter QR code image path: ").strip()
-            if not qr_path:
-                raise ValueError("No QR code path provided")
-            decoded_text = decode_qr_from_file(qr_path)
-        else:
-            decoded_text = decode_qr_from_file(args.qr_code)
-    elif args.clipboard:
-        decoded_text = decode_qr_from_clipboard()
+    # Use --decode-qr argument directly
+    if args.decode_qr == '':
+        # Prompt for QR file path (no filename provided)
+        qr_path = input("Enter QR code image path: ").strip()
+        if not qr_path:
+            raise ValueError("No QR code path provided")
+        decoded_text = decode_qr_from_file(qr_path)
     else:
-        raise ValueError("Must specify --qr-code or --clipboard for QR decoding")
+        # Decode from specified file
+        decoded_text = decode_qr_from_file(args.decode_qr)
 
     if args.quiet:
         print(decoded_text)
@@ -780,9 +771,10 @@ Decryption (piped - SECURE):
   echo "ARIIAYJo..." | %(prog)s -d   # ❌ INSECURE! Encrypted data in shell history!
 
 QR Code Operations (no encryption):
-  %(prog)s --encode-qr --qr-code qr.png    # Plain text → QR PNG
-  %(prog)s --encode-qr --qr-code           # Plain text → QR screen
-  %(prog)s --decode-qr --qr-code qr.png    # QR → text
+  %(prog)s --encode-qr qr.png              # Plain text → QR PNG
+  %(prog)s --encode-qr                     # Plain text → QR screen
+  %(prog)s --decode-qr qr.png              # QR image → text
+  %(prog)s --decode-qr                     # QR image → text (prompts for path)
 
 Advanced:
   %(prog)s -e --qr-code qr.png -b 30 --fill blue  # Custom QR styling
@@ -803,13 +795,19 @@ Advanced:
     )
     mode_group.add_argument(
         '--encode-qr',
-        action='store_true',
-        help='Encode QR code only (no encryption)'
+        nargs='?',
+        const='',
+        type=str,
+        help='Encode QR code only (no encryption). FILE=save PNG, empty=screen',
+        metavar='FILE'
     )
     mode_group.add_argument(
         '--decode-qr',
-        action='store_true',
-        help='Decode QR code only (no decryption)'
+        nargs='?',
+        const='',
+        type=str,
+        help='Decode QR code only (no decryption). FILE=image path, empty=prompt',
+        metavar='FILE'
     )
 
     # ========== Context-Aware I/O Arguments ==========
@@ -924,9 +922,9 @@ def main():
             cmd_encrypt(args)
         elif args.decrypt:
             cmd_decrypt(args)
-        elif args.encode_qr:
+        elif args.encode_qr is not None:  # Changed from boolean to optional argument
             cmd_encode_qr(args)
-        elif args.decode_qr:
+        elif args.decode_qr is not None:  # Changed from boolean to optional argument
             cmd_decode_qr(args)
 
         return 0

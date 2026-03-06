@@ -79,9 +79,10 @@ pbpaste | python decyph.py -d            # From clipboard (SECURE)
 # echo "ARIIAYJo..." | python decyph.py -d  # ❌ INSECURE! Saves in shell history
 
 # QR code operations (no encryption)
-python decyph.py --encode-qr --qr-code qr.png   # Plain text → QR PNG
-python decyph.py --encode-qr --qr-code          # Plain text → QR screen
-python decyph.py --decode-qr --qr-code qr.png   # QR → text
+python decyph.py --encode-qr qr.png             # Plain text → QR PNG
+python decyph.py --encode-qr                    # Plain text → QR screen
+python decyph.py --decode-qr qr.png             # QR image → text
+python decyph.py --decode-qr                    # QR image → text (prompts for path)
 
 # Advanced (custom QR styling)
 python decyph.py -e --qr-code qr.png -b 30 --fill blue --back yellow

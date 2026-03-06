@@ -21,10 +21,6 @@ All-in-one tool for encryption, decryption, and QR code operations:
 
 Ultra-compact 7-line decryption-only tool.
 
-### **Legacy Tools**
-
-Original tools (`encrypt_qr.py`, `decode_qr.py`, `file_to_qr.py`, `generate_qr.py`) are still available but superseded by `decyph.py`. See [LEGACY_TOOLS.md](LEGACY_TOOLS.md) for details.
-
 ---
 
 ## 🔒 Security First
@@ -162,8 +158,10 @@ pbpaste | ./decyph.py -e --qr-code qr.png
 # Scan QR and decrypt (prompts for image path)
 ./decyph.py -d --qr-code
 
-# Decrypt from QR PNG file
+# Decrypt from QR image file (supports PNG, JPEG, WEBP, etc.)
 ./decyph.py -d --qr-code qr.png
+./decyph.py -d --qr-code photo.jpg      # JPEG works!
+./decyph.py -d --qr-code scan.jpeg      # Any image format
 
 # Decrypt from clipboard QR
 ./decyph.py -d --clipboard
@@ -183,19 +181,21 @@ pbpaste | ./decyph.py -d
 
 ```bash
 # Encode text as QR (no encryption), save as PNG
-./decyph.py --encode-qr --qr-code qr.png
+./decyph.py --encode-qr qr.png
 
 # Encode text as QR, show on screen
-./decyph.py --encode-qr --qr-code
-
-# Decode QR to text (no decryption)
-./decyph.py --decode-qr --qr-code qr.png
-
-# Interactive QR encoding
 ./decyph.py --encode-qr
 
+# Decode QR to text (no decryption) - supports PNG, JPEG, WEBP, etc.
+./decyph.py --decode-qr qr.png
+./decyph.py --decode-qr photo.jpg              # JPEG works too!
+./decyph.py --decode-qr scan.jpeg              # Any image format
+
+# Decode QR (prompts for image path)
+./decyph.py --decode-qr
+
 # Custom colored QR code
-./decyph.py --encode-qr --qr-code qr.png --fill blue --back yellow
+./decyph.py --encode-qr qr.png --fill blue --back yellow
 ```
 
 ---
@@ -208,8 +208,8 @@ pbpaste | ./decyph.py -d
 |------|-------------|
 | `-e, --encrypt` | Encrypt text with password |
 | `-d, --decrypt` | Decrypt encrypted data |
-| `--encode-qr` | Encode QR code (no encryption) |
-| `--decode-qr` | Decode QR code (no decryption) |
+| `--encode-qr [FILE]` | Encode QR code (no encryption). FILE=save PNG, empty=screen |
+| `--decode-qr [FILE]` | Decode QR code (no decryption). FILE=image path, empty=prompt |
 
 ### Context-Aware Input/Output Options
 
@@ -217,7 +217,7 @@ These arguments adapt their behavior based on the mode:
 
 | Flag | Encrypt Mode (Output) | Decrypt Mode (Input) |
 |------|----------------------|---------------------|
-| `--qr-code [FILE]` | Save QR PNG (file) or show on screen (no file) | Read from QR PNG (file) or prompt for path (no file) |
+| `--qr-code [FILE]` | Save QR PNG (file) or show on screen (no file) | Read from QR image (file) or prompt for path (no file) |
 | `--url [FILE]` | Save full URL (file) or show on screen (no file) | Read from URL file or prompt for encrypted data |
 | `--base64 [FILE]` | Save base64 (file) or show on screen (no file) | Read from base64 file or prompt for encrypted data |
 | `--clipboard` | Copy to clipboard | Read QR from clipboard |
@@ -225,6 +225,7 @@ These arguments adapt their behavior based on the mode:
 **Important Notes:**
 - **Encrypt mode**: Multiple outputs can be specified simultaneously (e.g., `--qr-code qr.png --url out.txt --base64`)
 - **Decrypt mode**: Only ONE input source allowed (will error if multiple specified)
+- **Supported QR image formats**: PNG, JPEG (.jpg, .jpeg), WEBP, GIF, BMP, TIFF, and 50+ other formats (via Pillow)
 - Text and encrypted data are never accepted as command-line arguments for security
 - All sensitive data prompted interactively or piped from stdin
 
@@ -387,6 +388,23 @@ chmod +x decyph.py
 # Ensure dependencies installed
 pip install -r requirements.txt
 ```
+
+### QR Code Image Format Questions
+
+**Q: Does it support JPEG/JPG images?**
+✅ **Yes!** The tool supports JPEG, JPG, and 50+ other image formats including:
+- **Common**: PNG, JPEG (.jpg, .jpeg, .jpe), GIF, BMP, WEBP
+- **Professional**: TIFF, JPEG 2000 (.jp2), PSD (Photoshop)
+- **Others**: ICO, PPM, PGM, PCX, TGA, and many more
+
+The tool uses Pillow (PIL) which has extensive format support. You can use any image containing a QR code.
+
+**Q: Which format is best for QR codes?**
+PNG is recommended because:
+- Lossless compression (no quality degradation)
+- Best for sharp edges and high contrast (QR codes)
+- Smaller file size than BMP
+- JPEG uses lossy compression which can make QR codes harder to scan
 
 ---
 
