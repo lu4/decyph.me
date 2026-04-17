@@ -32,8 +32,8 @@ from qrcode.constants import ERROR_CORRECT_L, ERROR_CORRECT_M, ERROR_CORRECT_Q, 
 
 # QR code decoding (optional dependencies)
 try:
+    import cv2
     from PIL import Image
-    from pyzbar.pyzbar import decode as pyzbar_decode
     QR_DECODE_AVAILABLE = True
 except ImportError:
     QR_DECODE_AVAILABLE = False
@@ -190,31 +190,22 @@ def decode_qr_from_file(image_path: str) -> str:
     """Decode QR code from image file."""
     if not QR_DECODE_AVAILABLE:
         raise RuntimeError(
-            "QR decoding not available. Install: pip install pillow pyzbar\n"
-            "Also requires zbar library:\n"
-            "  - macOS: brew install zbar\n"
-            "  - Ubuntu/Debian: sudo apt-get install libzbar0\n"
-            "  - Fedora: sudo dnf install zbar"
+            "QR decoding not available. Install: pip install opencv-python-headless"
         )
 
     path = Path(image_path)
     if not path.exists():
         raise FileNotFoundError(f"Image file not found: {image_path}")
 
-    try:
-        img = Image.open(path)
-    except Exception as e:
-        raise ValueError(f"Failed to open image: {e}")
+    img = cv2.imread(str(path))
+    if img is None:
+        raise ValueError(f"Failed to open image: {image_path}")
 
-    decoded_objects = pyzbar_decode(img)
-
-    if not decoded_objects:
+    data, _, _ = cv2.QRCodeDetector().detectAndDecode(img)
+    if not data:
         raise ValueError("No QR code found in the image")
 
-    if len(decoded_objects) > 1:
-        print(f"Warning: Found {len(decoded_objects)} QR codes, using the first one", file=sys.stderr)
-
-    return decoded_objects[0].data.decode('utf-8')
+    return data
 
 
 def decode_qr_from_clipboard() -> str:
@@ -223,7 +214,7 @@ def decode_qr_from_clipboard() -> str:
         raise RuntimeError("Clipboard support not available (PIL.ImageGrab)")
 
     if not QR_DECODE_AVAILABLE:
-        raise RuntimeError("QR decoding not available (pyzbar)")
+        raise RuntimeError("QR decoding not available (opencv-python-headless)")
 
     img = ImageGrab.grabclipboard()
 
@@ -233,15 +224,13 @@ def decode_qr_from_clipboard() -> str:
     if not isinstance(img, Image.Image):
         raise ValueError("Clipboard content is not an image")
 
-    decoded_objects = pyzbar_decode(img)
-
-    if not decoded_objects:
+    import numpy as np
+    cv_img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+    data, _, _ = cv2.QRCodeDetector().detectAndDecode(cv_img)
+    if not data:
         raise ValueError("No QR code found in clipboard image")
 
-    if len(decoded_objects) > 1:
-        print(f"Warning: Found {len(decoded_objects)} QR codes, using the first one", file=sys.stderr)
-
-    return decoded_objects[0].data.decode('utf-8')
+    return data
 
 
 # ============================================================================
